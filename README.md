@@ -1,7 +1,7 @@
 - 👋 Hi, I’m @wenny1706
 - 👀 I’m interested in technology which can  be implemented in daily life
 - 🌱 I’m currently learning Generative AI Tools and Automation
-- 💞️ I’m looking to collaborate on Tech people as I'm actually a non-techie person to create a smooth automation products for retail, e-commerce and lead generation.
+- 💞️ I’m looking to collaborate with Tech people as I'm actually a non-techie person to create a smooth automation products for retail, e-commerce and lead generation.
 - 📫 You can reach me at www.linkedin.com/wenny17, IG/Threads: @digitalgeek17, X (twitter): @makwence
 - 😄 Pronouns: She
 - ⚡ Fun fact: I'm a Gen-X but my curiousity and learning obessesion is like a Gen-Z :)
