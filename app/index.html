@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panggung — Latihan Public Speaking &amp; Pitching</title>
+<meta name="description" content="Latihan public speaking dengan analisis mikrofon langsung: artikulasi, kecepatan bicara, kejelasan pelafalan, dan asisten suara AI.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">🎤</span>
+    <div>
+      <h1>Panggung</h1>
+      <p>Latihan pitching di depan klien &amp; publik</p>
+    </div>
+  </div>
+
+  <div class="controls">
+    <label class="ctl"><span>Bahasa</span><select id="lang"></select></label>
+    <label class="switch"><input type="checkbox" id="coach-voice"><span>Suara asisten</span></label>
+    <label class="switch" title="Asisten menegur dengan suara saat kamu bicara. Bisa mengganggu jika memakai speaker."><input type="checkbox" id="live-voice"><span>Tegur langsung</span></label>
+    <span id="mic-state" class="mic-state">Mikrofon belum diizinkan</span>
+    <button id="mic-request" class="btn small">Izinkan mikrofon</button>
+    <button id="nav-home" class="btn ghost small">Beranda</button>
+  </div>
+</header>
+
+<div id="support-note" class="note" hidden></div>
+
+<main>
+  <!-- BERANDA -->
+  <section id="screen-home" class="screen">
+    <h2 class="section-title">Pilih latihan</h2>
+    <div id="mode-grid" class="mode-grid"></div>
+
+    <div class="two-col">
+      <section class="panel">
+        <h3>Kemajuan kamu</h3>
+        <div id="progress-box"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head">
+          <h3>Riwayat latihan</h3>
+          <button id="clear-history" class="btn ghost small">Hapus</button>
+        </div>
+        <div id="history-list" class="history"></div>
+      </section>
+    </div>
+  </section>
+
+  <!-- PEMILIHAN MATERI -->
+  <section id="screen-picker" class="screen" hidden>
+    <button id="picker-back" class="btn ghost small back">‹ Kembali</button>
+    <h2 id="picker-title" class="section-title"></h2>
+    <div id="picker-list" class="pick-list"></div>
+  </section>
+
+  <!-- SESI LATIHAN -->
+  <section id="screen-session" class="screen" hidden>
+    <button id="session-back" class="btn ghost small back">‹ Batalkan</button>
+    <div class="session-head">
+      <h2 id="session-title"></h2>
+      <span id="recording-dot" class="rec-dot" hidden>● merekam</span>
+    </div>
+    <p id="session-brief" class="brief"></p>
+
+    <div id="script-box" class="script" hidden></div>
+
+    <div class="meters">
+      <div class="meter"><span class="meter-label" id="timer-label">Waktu</span><strong id="timer">0:00</strong></div>
+      <div class="meter"><span class="meter-label">Kecepatan (kpm)</span><strong id="wpm">0</strong></div>
+      <div class="meter"><span class="meter-label">Kata pengisi</span><strong id="filler-count">0</strong></div>
+      <div class="meter wide">
+        <span class="meter-label">Volume suara</span>
+        <div class="level"><div id="level-fill" class="level-fill"></div></div>
+      </div>
+    </div>
+
+    <p id="coach-cue" class="cue"></p>
+
+    <div id="transcript" class="transcript" aria-live="polite"></div>
+
+    <div class="row center">
+      <button id="btn-start" class="btn big">Mulai bicara</button>
+      <button id="btn-stop" class="btn big danger" hidden>Selesai &amp; nilai</button>
+    </div>
+  </section>
+
+  <!-- LAPORAN -->
+  <section id="screen-report" class="screen" hidden>
+    <h2 id="report-title" class="section-title"></h2>
+
+    <div class="report-top">
+      <div id="score-ring" class="ring"><span id="score-value">0</span><small>dari 100</small></div>
+      <div class="report-side">
+        <p id="verdict" class="verdict"></p>
+        <div id="score-bars" class="mini-bars"></div>
+      </div>
+    </div>
+
+    <div id="report-stats" class="stats"></div>
+    <div id="feedback-list" class="panel feedback"></div>
+
+    <section class="panel">
+      <h3>Transkrip</h3>
+      <div id="report-transcript" class="script"></div>
+    </section>
+
+    <section id="playback-wrap" class="panel" hidden>
+      <h3>Dengar rekamanmu</h3>
+      <audio id="playback" controls></audio>
+    </section>
+
+    <section id="qa-box" class="panel" hidden></section>
+
+    <div class="row center">
+      <button id="btn-replay-feedback" class="btn ghost">Putar ulang umpan balik</button>
+      <button id="btn-repeat" class="btn">Ulangi latihan</button>
+      <button id="btn-home" class="btn ghost">Beranda</button>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>Semua rekaman dan riwayat disimpan di perangkatmu sendiri. Tidak ada audio yang dikirim ke server oleh aplikasi ini.</p>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
