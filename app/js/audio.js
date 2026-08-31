@@ -26,7 +26,10 @@ export class MicEngine {
     this.pitches = [];
     this.pauses = [];
     this.longPauses = 0;
+    this.breaths = 0;
+    this.runs = [];            // panjang tiap tarikan napas (ms)
     this._silenceStart = null;
+    this._voiceStart = null;
     this.startedAt = 0;
     this.lastBlob = null;
   }
@@ -77,7 +80,9 @@ export class MicEngine {
   stop() {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
-    this._closePause(performance.now());
+    const now = performance.now();
+    this._closePause(now);
+    this._closeRun(now);
     return new Promise(resolve => {
       if (this.recorder && this.recorder.state !== 'inactive') {
         this.recorder.onstop = () => {
@@ -117,6 +122,7 @@ export class MicEngine {
         this.voicedFrames++;
         if (rms >= AUDIO.quietRms) this.loudFrames++;
         this._closePause(now);
+        if (this._voiceStart === null) this._voiceStart = now;
         const f0 = this._detectPitch(this._buf, this.ctx.sampleRate);
         if (f0) this.pitches.push(f0);
       } else if (this._silenceStart === null) {
@@ -127,21 +133,40 @@ export class MicEngine {
         this.onFrame({
           rms,
           level: Math.min(1, rms / 0.25),
-          silentMs: this._silenceStart ? now - this._silenceStart : 0
+          silentMs: this._silenceStart ? now - this._silenceStart : 0,
+          runMs: this._voiceStart !== null ? now - this._voiceStart : 0
         });
       }
     };
     this.raf = requestAnimationFrame(tick);
   }
 
+  /**
+   * Menutup periode diam yang baru saja berakhir. Diam sesingkat `breathMs`
+   * sudah dianggap ambil napas, dan mengakhiri satu tarikan bicara.
+   */
   _closePause(now) {
     if (this._silenceStart === null) return;
-    const dur = now - this._silenceStart;
+    const start = this._silenceStart;
+    const dur = now - start;
     this._silenceStart = null;
+
+    if (dur >= AUDIO.breathMs) {
+      this.breaths++;
+      this._closeRun(start);
+    }
     if (dur >= AUDIO.pauseMs) {
       this.pauses.push(dur);
       if (dur >= AUDIO.longPauseMs) this.longPauses++;
     }
+  }
+
+  /** Mencatat panjang satu tarikan bicara yang berakhir pada `endedAt`. */
+  _closeRun(endedAt) {
+    if (this._voiceStart === null) return;
+    const dur = endedAt - this._voiceStart;
+    this._voiceStart = null;
+    if (dur >= 400) this.runs.push(dur);   // abaikan bunyi sekilas
   }
 
   /** Autokorelasi sederhana untuk memperkirakan nada dasar suara (80-350 Hz). */
@@ -173,8 +198,16 @@ export class MicEngine {
       medianHz = sorted[Math.floor(sorted.length / 2)];
       semitoneRange = 12 * Math.log2(p90 / p10);
     }
+    const runCount = this.runs.length;
+    const avgRunMs = runCount ? this.runs.reduce((a, b) => a + b, 0) / runCount : 0;
+    const maxRunMs = runCount ? Math.max(...this.runs) : 0;
+
     return {
       durationMs,
+      runCount,
+      avgRunMs,
+      maxRunMs,
+      breaths: this.breaths,
       avgRms: this.frames ? this.rmsSum / this.frames : 0,
       peakRms: this.peakRms,
       voicedRatio,

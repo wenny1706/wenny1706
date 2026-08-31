@@ -66,7 +66,7 @@ export class LiveCoach {
   }
 
   /** Mengembalikan satu petunjuk singkat atau null. */
-  evaluate({ wpm, band, rms, silentMs, fillerRate, elapsedMs }) {
+  evaluate({ wpm, band, rms, silentMs, runMs, fillerRate, elapsedMs }) {
     const now = performance.now();
     if (elapsedMs < 6000) return null;
     if (now - this._last < this.cooldownMs) return null;
@@ -74,7 +74,8 @@ export class LiveCoach {
     const t = TIPS[this.lang] || TIPS['id-ID'];
     let key = null, msg = null;
 
-    if (silentMs > AUDIO.longPauseMs + 1200) { key = 'silence'; msg = t.silence; }
+    if (runMs > AUDIO.runTooLong * 1000) { key = 'nonstop'; msg = t.nonstop; }
+    else if (silentMs > AUDIO.longPauseMs + 1200) { key = 'silence'; msg = t.silence; }
     else if (fillerRate >= 5) { key = 'filler'; msg = t.filler; }
     else if (wpm > band.max + 18) { key = 'fast'; msg = t.fast; }
     else if (wpm > 0 && wpm < band.min - 22) { key = 'slow'; msg = t.slow; }
@@ -91,6 +92,7 @@ export class LiveCoach {
 
 const TIPS = {
   'id-ID': {
+    nonstop: 'Ambil napas. Berhenti di titik, jangan nyerocos.',
     silence: 'Ambil kembali. Lanjutkan kalimatmu.',
     filler: 'Terlalu banyak kata pengisi. Ganti dengan jeda diam.',
     fast: 'Terlalu cepat. Turunkan tempo.',
@@ -98,6 +100,7 @@ const TIPS = {
     quiet: 'Suara kurang terproyeksi. Bicara lebih lantang.'
   },
   'en-US': {
+    nonstop: 'Take a breath. Stop at the full stop.',
     silence: 'Pick it back up. Finish your sentence.',
     filler: 'Too many fillers. Replace them with a silent pause.',
     fast: 'Too fast. Slow down.',
@@ -139,6 +142,23 @@ export function buildFeedback(result, lang, mode) {
   } else if (p.clarity < 70) {
     fix.push(id ? 'Kejelasan kata kurang. Akhiri setiap kata, jangan menelan suku kata terakhir.'
                 : 'Clarity is low. Finish every word, do not swallow the last syllable.');
+  }
+
+  if (s.expectedBreaths > 0 && s.breaths < s.expectedBreaths * 0.6) {
+    fix.push(id
+      ? `Kamu cuma berhenti ${s.breaths} kali, padahal naskahnya punya ${s.expectedBreaths} tanda baca. Setiap koma berhenti sekejap, setiap titik ambil napas.`
+      : `You paused only ${s.breaths} times, but the script has ${s.expectedBreaths} punctuation marks. Pause briefly at every comma, breathe at every full stop.`);
+  } else if (p.rhythm >= 80) {
+    good.push(id ? `Ritme napasmu stabil, rata-rata ${s.avgRunSec} detik per tarikan.`
+                 : `Steady rhythm, ${s.avgRunSec} seconds per breath on average.`);
+  } else if (s.maxRunSec > 15) {
+    fix.push(id
+      ? `Ada bagian sepanjang ${s.maxRunSec} detik yang kamu ucapkan tanpa berhenti sama sekali. Itu terdengar nyerocos dan bikin klien capek mendengar. Potong jadi kalimat pendek.`
+      : `One stretch ran ${s.maxRunSec} seconds without a single pause. That sounds rushed. Break it into short sentences.`);
+  } else if (p.rhythm < 60 && s.avgRunSec < 2.5) {
+    fix.push(id
+      ? `Kalimatmu terpotong-potong, rata-rata cuma ${s.avgRunSec} detik sekali bicara. Selesaikan satu kalimat penuh sebelum berhenti.`
+      : `Your delivery is choppy, only ${s.avgRunSec} seconds per stretch. Finish a full sentence before stopping.`);
   }
 
   if (p.projection < 65) fix.push(id

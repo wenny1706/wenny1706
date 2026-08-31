@@ -1,4 +1,4 @@
-import { FILLERS, PACE, AUDIO, WEIGHTS } from './config.js';
+import { FILLERS, PACE, AUDIO, WEIGHTS, PAUSE_MS } from './config.js';
 
 export const normalize = t => (t || '')
   .toLowerCase()
@@ -22,6 +22,36 @@ export function countFillers(text, lang) {
   const stretched = (padded.match(/\s(e{2,}|m{2,}|a{3,}|h?mm+)\s/g) || []).length;
   if (stretched) { found['bunyi ragu'] = (found['bunyi ragu'] || 0) + stretched; total += stretched; }
   return { total, found };
+}
+
+/**
+ * Memecah naskah menjadi token kata sambil mempertahankan tanda bacanya,
+ * supaya tanda baca tetap terlihat di layar dan bisa dijadikan tanda ambil napas.
+ * Urutan token sengaja dibuat sama persis dengan hasil words(), agar penilaian
+ * per kata tetap cocok indeksnya.
+ */
+export function tokenize(text) {
+  const chunks = (text || '').trim().split(/\s+/).filter(Boolean);
+  const tokens = chunks.map(chunk => {
+    const m = chunk.match(/^[^\p{L}\p{N}]*(.*?)([^\p{L}\p{N}]*)$/u);
+    const word = (m ? m[1] : chunk);
+    const trail = (m ? m[2] : '');
+    const mark = ['...', '?', '!', '.', ';', ':', ','].find(k => trail.includes(k)) || '';
+    return { word, punct: trail, mark, pause: PAUSE_MS[mark] || 0 };
+  }).filter(t => t.word);
+
+  // Jaring pengaman: kalau jumlahnya tidak cocok, jangan pakai token.
+  if (tokens.length !== words(text).length) return null;
+
+  // Tanda baca di kata terakhir tidak perlu dijadikan tempat ambil napas.
+  if (tokens.length) tokens[tokens.length - 1].pause = 0;
+  return tokens;
+}
+
+/** Berapa kali seharusnya berhenti mengambil napas pada satu naskah. */
+export function expectedBreaths(text) {
+  const t = tokenize(text);
+  return t ? t.filter(x => x.pause > 0).length : 0;
 }
 
 export const wpm = (text, ms) => (ms > 0 ? words(text).length / (ms / 60000) : 0);
@@ -80,10 +110,35 @@ function fuzzyEqual(x, y) {
 const clamp = (n, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 
 /**
+ * Menilai ritme bicara: seberapa wajar panjang satu tarikan napas, dan
+ * (kalau ada naskah) seberapa patuh berhenti di tanda baca.
+ */
+function scoreRhythm(audio, expected, coverage) {
+  const avg = audio.avgRunMs / 1000;
+  const max = audio.maxRunMs / 1000;
+  if (!audio.runCount || avg === 0) return { score: 0, avg, max };
+
+  let base;
+  if (avg < AUDIO.runIdealMin) base = 40 + (avg / AUDIO.runIdealMin) * 55;   // terputus-putus
+  else if (avg <= AUDIO.runIdealMax) base = 100;
+  else base = 100 - (avg - AUDIO.runIdealMax) * 9;                            // nyerocos
+
+  if (max > AUDIO.runTooLong) base -= Math.min(30, (max - AUDIO.runTooLong) * 3);
+
+  // Kepatuhan pada tanda baca, hanya untuk mode dengan naskah.
+  if (expected > 0) {
+    const target = Math.max(1, Math.round(expected * clamp(coverage, 0, 1)));
+    const ratio = Math.min(1, audio.breaths / target);
+    base = base * 0.5 + ratio * 100 * 0.5;
+  }
+  return { score: clamp(base), avg, max };
+}
+
+/**
  * Menghitung skor 0-100 per aspek + skor keseluruhan.
  * `scriptAccuracy` hanya ada pada mode dengan naskah target.
  */
-export function scoreSession({ text, audio, lang, scriptAccuracy = null, confidence = null }) {
+export function scoreSession({ text, audio, lang, scriptAccuracy = null, confidence = null, script = null }) {
   const band = PACE[lang] || PACE['id-ID'];
   const minutes = audio.durationMs / 60000;
   const speed = minutes > 0 ? words(text).length / minutes : 0;
@@ -105,7 +160,20 @@ export function scoreSession({ text, audio, lang, scriptAccuracy = null, confide
   const projection = clamp(audio.loudRatio * 100 * 1.15);
   const variety = clamp((audio.semitoneRange / AUDIO.minSemitoneRange) * 70 + 10);
 
-  const parts = { pace, filler, clarity, projection, variety };
+  const expected = script ? expectedBreaths(script) : 0;
+  // Seberapa banyak naskah yang benar-benar dibaca. Kalau transkrip tidak tersedia
+  // (browser tanpa pengenalan suara), diperkirakan dari lama bicara.
+  let coverage = 1;
+  if (script) {
+    const targetWords = Math.max(1, words(script).length);
+    coverage = words(text).length
+      ? words(text).length / targetWords
+      : audio.durationMs / ((targetWords / band.ideal) * 60000);
+  }
+  const rhythmInfo = scoreRhythm(audio, expected, coverage);
+  const rhythm = rhythmInfo.score;
+
+  const parts = { pace, filler, clarity, rhythm, projection, variety };
   const overall = Math.round(
     Object.entries(WEIGHTS).reduce((sum, [k, w]) => sum + parts[k] * w, 0)
   );
@@ -123,6 +191,10 @@ export function scoreSession({ text, audio, lang, scriptAccuracy = null, confide
       pauseCount: audio.pauseCount,
       longPauses: audio.longPauses,
       semitoneRange: +audio.semitoneRange.toFixed(1),
+      breaths: audio.breaths,
+      expectedBreaths: expected ? Math.max(1, Math.round(expected * clamp(coverage, 0, 1))) : 0,
+      avgRunSec: +rhythmInfo.avg.toFixed(1),
+      maxRunSec: +rhythmInfo.max.toFixed(1),
       durationSec: Math.round(audio.durationMs / 1000),
       scriptAccuracy: scriptAccuracy === null ? null : Math.round(scriptAccuracy * 100)
     }

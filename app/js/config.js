@@ -29,14 +29,23 @@ export const PACE = {
 /** Ambang analisis audio. */
 export const AUDIO = {
   silenceRms: 0.012,      // di bawah ini dianggap jeda
-  pauseMs: 700,           // jeda yang mulai dihitung
+  breathMs: 280,          // diam sesingkat ini sudah dihitung sebagai ambil napas
+  pauseMs: 700,           // jeda yang mulai dihitung sebagai jeda sadar
   longPauseMs: 2200,      // jeda yang dianggap terlalu lama
   quietRms: 0.035,        // di bawah ini dianggap suara terlalu pelan
-  minSemitoneRange: 2.0   // variasi nada minimal agar tidak monoton
+  minSemitoneRange: 2.0,  // variasi nada minimal agar tidak monoton
+  runIdealMin: 2.5,       // panjang satu tarikan napas yang wajar (detik)
+  runIdealMax: 9,
+  runTooLong: 15          // di atas ini namanya nyerocos
+};
+
+/** Lama jeda yang seharusnya diambil pada tiap tanda baca (milidetik). */
+export const PAUSE_MS = {
+  ',': 350, ';': 450, ':': 450, '.': 750, '!': 750, '?': 750, '...': 900
 };
 
 /** Bobot skor akhir. */
-export const WEIGHTS = { pace: 0.22, filler: 0.22, clarity: 0.26, projection: 0.15, variety: 0.15 };
+export const WEIGHTS = { pace: 0.18, filler: 0.18, clarity: 0.22, rhythm: 0.18, projection: 0.12, variety: 0.12 };
 
 export const SCENARIOS = [
   {
@@ -134,8 +143,14 @@ export const CLARITY = {
 
 /** Naskah untuk latihan mengatur kecepatan bicara. */
 export const PACE_SCRIPT = {
-  'id-ID': `Setiap bisnis punya satu masalah yang sama: waktu. Tim menghabiskan berjam-jam untuk pekerjaan berulang yang sebenarnya bisa diselesaikan sistem. Kami membantu perusahaan memetakan pekerjaan itu, lalu memindahkannya ke alur kerja otomatis yang tetap dipegang manusia. Hasilnya sederhana. Pekerjaan yang tadinya makan tiga jam sehari sekarang selesai dalam dua puluh menit. Biaya operasional turun, dan tim punya ruang untuk mengurus pelanggan. Kami tidak menjual perangkat lunak, kami menjual waktu yang kembali ke tangan Anda. Kalau Anda memberi kami tiga puluh menit minggu ini, kami akan tunjukkan satu proses di perusahaan Anda yang bisa berjalan otomatis sejak bulan depan.`,
-  'en-US': `Every business shares the same problem: time. Teams spend hours on repetitive work that a system could finish on its own. We help companies map that work, then move it into automated workflows that people still control. The result is simple. Work that used to take three hours a day now takes twenty minutes. Operating costs drop, and the team gets room to serve customers. We do not sell software, we sell time returned to your hands. Give us thirty minutes this week and we will show you one process in your company that can run automatically starting next month.`
+  'id-ID': `Setiap bisnis punya satu masalah yang sama: waktu. Tim menghabiskan berjam-jam untuk pekerjaan berulang, padahal sistem bisa menyelesaikannya sendiri. Kami memetakan pekerjaan itu, lalu memindahkannya ke alur kerja otomatis. Manusia tetap yang memegang kendali. Hasilnya sederhana. Pekerjaan yang tadinya makan tiga jam sehari, sekarang selesai dalam dua puluh menit. Biaya operasional turun. Tim punya ruang untuk mengurus pelanggan. Jadi, kami tidak menjual perangkat lunak. Kami menjual waktu yang kembali ke tangan Anda. Beri kami tiga puluh menit minggu ini, dan kami tunjukkan satu proses di perusahaan Anda yang bisa berjalan otomatis mulai bulan depan.`,
+  'en-US': `Every business shares the same problem: time. Teams spend hours on repetitive work, even though a system could finish it alone. We map that work, then move it into automated workflows. People still hold the controls. The result is simple. Work that used to take three hours a day, now takes twenty minutes. Operating costs drop. The team gets room to serve customers. So, we do not sell software. We sell time returned to your hands. Give us thirty minutes this week, and we will show you one process in your company that can run automatically from next month.`
+};
+
+/** Naskah pendek khusus latihan ritme: banyak titik, kalimat singkat. */
+export const RHYTHM_SCRIPT = {
+  'id-ID': `Terima kasih atas waktunya. Saya Wenny, dari Digital Geekz. Hari ini saya bawa satu angka. Tim Anda kehilangan enam ratus jam setiap tahun, hanya untuk menyalin data. Enam ratus jam. Itu setara tiga bulan kerja satu orang. Kami sudah memperbaiki ini di tiga perusahaan retail. Rata-rata, mereka hemat delapan puluh persen waktu. Bukan teori. Angka nyata, dari klien nyata. Saya minta satu hal saja hari ini: tiga puluh menit, minggu depan, bersama tim operasional Anda.`,
+  'en-US': `Thank you for your time. I am Wenny, from Digital Geekz. Today I bring one number. Your team loses six hundred hours every year, just copying data. Six hundred hours. That equals three months of one person's work. We have fixed this in three retail companies. On average, they saved eighty percent of that time. Not theory. Real numbers, from real clients. I ask one thing today: thirty minutes, next week, with your operations team.`
 };
 
 /** Kalimat pembuka pelatih suara per mode. */
@@ -144,12 +159,12 @@ export const COACH_INTRO = {
     pitch: 'Siap. Tarik napas, bicara ke arah klien, dan mulai saat aba-aba.',
     articulation: 'Baca perlahan dan berlebihan. Buka mulut lebih lebar dari biasanya.',
     clarity: 'Baca kalimat di layar. Ucapkan setiap suku kata sampai selesai.',
-    pace: 'Ikuti penunjuk kecepatan. Jangan mendahului, jangan tertinggal.'
+    pace: 'Ikuti sorotan kata. Berhenti setiap ketemu garis miring, itu tempat ambil napas.'
   },
   'en-US': {
     pitch: 'Ready. Breathe, face your client, and start on the cue.',
     articulation: 'Read slowly and exaggerate. Open your mouth wider than usual.',
     clarity: 'Read the sentence on screen. Finish every syllable.',
-    pace: 'Follow the pacer. Do not rush, do not lag.'
+    pace: 'Follow the highlight. Stop at every slash, that is where you breathe.'
   }
 };

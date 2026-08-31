@@ -1,7 +1,7 @@
-import { LANGS, SCENARIOS, ARTICULATION, CLARITY, PACE_SCRIPT, PACE, COACH_INTRO } from './config.js';
+import { LANGS, SCENARIOS, ARTICULATION, CLARITY, PACE_SCRIPT, RHYTHM_SCRIPT, PACE, COACH_INTRO } from './config.js';
 import { MicEngine } from './audio.js';
 import { Transcriber } from './recognition.js';
-import { scoreSession, countFillers, compareToScript, words, normalize } from './metrics.js';
+import { scoreSession, countFillers, compareToScript, words, tokenize } from './metrics.js';
 import { VoiceCoach, LiveCoach, buildFeedback } from './coach.js';
 import { loadSessions, saveSession, clearSessions, loadPrefs, savePrefs, progress } from './storage.js';
 
@@ -13,12 +13,12 @@ const MODE_LABEL = {
   pitch: 'Latihan Pitch',
   articulation: 'Artikulasi',
   clarity: 'Kejelasan Pelafalan',
-  pace: 'Kecepatan Bicara'
+  pace: 'Kecepatan & Ritme'
 };
 
 const ASPECT_LABEL = {
   pace: 'Kecepatan', filler: 'Bebas kata pengisi', clarity: 'Kejelasan',
-  projection: 'Proyeksi suara', variety: 'Variasi nada'
+  rhythm: 'Ritme & jeda', projection: 'Proyeksi suara', variety: 'Variasi nada'
 };
 
 class App {
@@ -117,7 +117,7 @@ class App {
       { mode: 'pitch', icon: '🎯', title: 'Latihan Pitch', desc: 'Skenario nyata di depan klien atau investor, lengkap dengan sesi tanya jawab dadakan dari asisten AI.' },
       { mode: 'articulation', icon: '👄', title: 'Artikulasi', desc: 'Kalimat sulit untuk melenturkan lidah dan bibir. Dinilai per kata.' },
       { mode: 'clarity', icon: '🔊', title: 'Kejelasan Pelafalan', desc: 'Baca kalimat pitching. Kata yang tidak jelas ditandai merah.' },
-      { mode: 'pace', icon: '⏱️', title: 'Kecepatan Bicara', desc: 'Ikuti penunjuk tempo agar tidak terlalu cepat atau terlalu lambat.' }
+      { mode: 'pace', icon: '⏱️', title: 'Kecepatan & Ritme', desc: 'Ikuti penunjuk tempo, dan berhenti di setiap tanda baca supaya tidak nyerocos.' }
     ];
 
     cards.forEach(c => {
@@ -196,11 +196,14 @@ class App {
     if (mode === 'clarity') return (CLARITY[this.lang] || []).map((t, i) => ({ id: 'cla' + i, title: `Kalimat ${i + 1}`, brief: t, script: t }));
     if (mode === 'pace') {
       const script = PACE_SCRIPT[this.lang];
+      const rhythm = RHYTHM_SCRIPT[this.lang];
       const band = PACE[this.lang];
+      const howto = 'Ikuti sorotan kata. Berhenti setiap ketemu garis miring: / sebentar saja, // ambil napas.';
       return [
-        { id: 'pace-ideal', title: `Tempo ideal (${band.ideal} kpm)`, brief: 'Ikuti sorotan kata. Ini kecepatan yang nyaman didengar klien.', script, target: band.ideal },
-        { id: 'pace-slow', title: `Tempo tenang (${band.min} kpm)`, brief: 'Untuk membuka presentasi dan menekankan angka penting.', script, target: band.min },
-        { id: 'pace-fast', title: `Tempo energik (${band.max} kpm)`, brief: 'Untuk bagian cerita dan demo produk.', script, target: band.max }
+        { id: 'pace-rhythm', title: 'Ritme & jeda (kalimat pendek)', brief: 'Naskah penuh titik. Latihan paling pas kalau kamu cenderung nyerocos. ' + howto, script: rhythm, target: band.ideal },
+        { id: 'pace-ideal', title: `Tempo ideal (${band.ideal} kpm)`, brief: 'Kecepatan yang paling nyaman didengar klien. ' + howto, script, target: band.ideal },
+        { id: 'pace-slow', title: `Tempo tenang (${band.min} kpm)`, brief: 'Untuk membuka presentasi dan menekankan angka penting. ' + howto, script, target: band.min },
+        { id: 'pace-fast', title: `Tempo energik (${band.max} kpm)`, brief: 'Untuk bagian cerita dan demo produk. ' + howto, script, target: band.max }
       ];
     }
     return [];
@@ -232,13 +235,10 @@ class App {
 
     const scriptBox = $('#script-box');
     scriptBox.innerHTML = '';
+    this.session.tokens = null;
     if (item.script) {
       scriptBox.hidden = false;
-      words(item.script).forEach((w, i) => {
-        const span = el('span', 'w', w);
-        span.dataset.i = i;
-        scriptBox.append(span, document.createTextNode(' '));
-      });
+      this.session.tokens = this.renderScript(scriptBox, item.script);
     } else scriptBox.hidden = true;
 
     $('#btn-start').onclick = () => this.start();
@@ -247,6 +247,43 @@ class App {
 
     const intro = COACH_INTRO[this.lang]?.[mode];
     if (intro) { $('#coach-cue').textContent = intro; this.coach.say(intro, { interrupt: true }); }
+  }
+
+  /**
+   * Menggambar naskah lengkap dengan tanda bacanya, lalu menyisipkan tanda
+   * ambil napas: "/" untuk berhenti sebentar, "//" untuk tarik napas.
+   */
+  renderScript(box, script) {
+    const tokens = tokenize(script);
+    if (!tokens) {
+      // Naskah tidak bisa dipetakan per kata, tampilkan apa adanya.
+      box.textContent = script;
+      return null;
+    }
+    tokens.forEach((tok, i) => {
+      const span = el('span', 'w', tok.word + tok.punct);
+      span.dataset.i = i;
+      box.append(span);
+      if (tok.pause) {
+        const mark = el('span', 'breath', tok.pause >= 600 ? '//' : '/');
+        mark.dataset.i = i;
+        mark.title = tok.pause >= 600 ? 'Tarik napas' : 'Berhenti sebentar';
+        box.append(' ', mark, ' ');
+      } else box.append(' ');
+    });
+    return tokens;
+  }
+
+  /** Jadwal penunjuk tempo: tiap kata dapat jatah waktu, tiap tanda baca dapat jeda. */
+  buildSchedule(tokens, targetWpm) {
+    const perWord = 60000 / targetWpm;
+    let t = 0;
+    const steps = [];
+    tokens.forEach((tok, i) => {
+      steps.push({ type: 'w', i, until: (t += perWord) });
+      if (tok.pause) steps.push({ type: 'p', i, until: (t += tok.pause) });
+    });
+    return steps;
   }
 
   async start() {
@@ -266,7 +303,9 @@ class App {
     this.stt.onUpdate = (fin, itm) => this.onTranscript(fin, itm);
 
     this.session.startedAt = performance.now();
-    this.session.pacerIndex = 0;
+    this.session.pacerStep = -1;
+    this.session.schedule = (this.session.mode === 'pace' && this.session.tokens && this.session.item.target)
+      ? this.buildSchedule(this.session.tokens, this.session.item.target) : null;
     $('#btn-start').hidden = true;
     $('#btn-stop').hidden = false;
     $('#recording-dot').hidden = false;
@@ -310,16 +349,24 @@ class App {
     const fillers = countFillers(text, this.lang);
     $('#filler-count').textContent = String(fillers.total);
 
-    // penunjuk tempo untuk mode kecepatan
-    if (s.mode === 'pace' && s.item.target) {
-      const idx = Math.floor((elapsed / 60000) * s.item.target);
-      const spans = $$('#script-box .w');
-      if (idx !== s.pacerIndex) {
-        s.pacerIndex = idx;
-        spans.forEach((sp, i) => sp.classList.toggle('pacer', i === idx));
-        if (spans[idx]) spans[idx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    // penunjuk tempo: menyorot kata, lalu berhenti di tanda ambil napas
+    if (s.schedule) {
+      let step = s.pacerStep;
+      while (step + 1 < s.schedule.length && elapsed > s.schedule[step + 1].until) step++;
+      if (step !== s.pacerStep) {
+        s.pacerStep = step;
+        const cur = s.schedule[step + 1];
+        $$('#script-box .w, #script-box .breath').forEach(sp => sp.classList.remove('pacer'));
+        if (cur) {
+          const sel = cur.type === 'w' ? '.w' : '.breath';
+          const node = $(`#script-box ${sel}[data-i="${cur.i}"]`);
+          if (node) {
+            node.classList.add('pacer');
+            node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          }
+        }
       }
-      if (idx >= spans.length) this.finish();
+      if (step + 1 >= s.schedule.length) { this.finish(); return; }
     }
 
     // batas waktu skenario
@@ -329,6 +376,7 @@ class App {
       wpm: speed, band,
       rms: this._frame?.rms || 0,
       silentMs: this._frame?.silentMs || 0,
+      runMs: this._frame?.runMs || 0,
       fillerRate: minutes > 0.1 ? fillers.total / minutes : 0,
       elapsedMs: elapsed
     });
@@ -374,7 +422,8 @@ class App {
     const result = scoreSession({
       text, audio, lang: this.lang,
       scriptAccuracy,
-      confidence: this.stt.avgConfidence
+      confidence: this.stt.avgConfidence,
+      script: item.script || null
     });
     const feedback = buildFeedback(result, this.lang, this.session.mode);
     this.lastResult = { result, feedback, text, blob, item, mode: this.session.mode, missed, cmp };
@@ -433,8 +482,10 @@ class App {
       ['Kecepatan', `${s.wpm} kpm (target ${s.band.min}-${s.band.max})`],
       ['Kata pengisi', `${s.fillerCount} (${s.fillerRate}/menit)`],
       ['Jeda panjang', String(s.longPauses)],
-      ['Variasi nada', `${s.semitoneRange} semitone`]
+      ['Variasi nada', `${s.semitoneRange} semitone`],
+      ['Napas per tarikan', `${s.avgRunSec} detik (terpanjang ${s.maxRunSec})`]
     ];
+    if (s.expectedBreaths > 0) statItems.push(['Berhenti di tanda baca', `${s.breaths} dari ${s.expectedBreaths}`]);
     if (s.scriptAccuracy !== null) statItems.push(['Ketepatan naskah', `${s.scriptAccuracy}%`]);
     statItems.forEach(([k, v]) => {
       const b = el('div', 'stat');
@@ -462,8 +513,10 @@ class App {
     tBox.innerHTML = '';
     if (item.script) {
       const cmp = this.lastResult.cmp;
+      const toks = tokenize(item.script);
       cmp.targetWords.forEach((w, i) => {
-        const span = el('span', cmp.matched[i] ? 'w hit' : 'w miss', w);
+        const tok = toks ? toks[i] : null;
+        const span = el('span', cmp.matched[i] ? 'w hit' : 'w miss', tok ? tok.word + tok.punct : w);
         tBox.append(span, document.createTextNode(' '));
       });
       if (missed.length) tBox.append(el('p', 'muted', 'Kata merah belum terucap jelas. Ulangi pelan-pelan, lalu percepat.'));

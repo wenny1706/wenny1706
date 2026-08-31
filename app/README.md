@@ -12,6 +12,7 @@ Tanpa instalasi, tanpa server, tanpa akun. Semua analisis berjalan di browser.
 |---|---|
 | **Artikulasi** | Kalimat sulit (tongue twister) dibandingkan kata per kata dengan hasil ucapanmu. Kata yang meleset ditandai merah. |
 | **Kecepatan bicara** | Kata per menit dihitung langsung. Ada penunjuk tempo yang menyorot kata yang harus kamu ucapkan saat itu, sesuai target 110–150 kpm. |
+| **Ritme &amp; jeda** | Naskah ditampilkan lengkap dengan tanda bacanya, ditambah tanda ambil napas: `/` berhenti sebentar (koma), `//` tarik napas (titik). Aplikasi mengukur panjang tiap tarikan bicara dan menghitung berapa kali kamu benar-benar berhenti dibanding jumlah tanda baca yang seharusnya. |
 | **Kejelasan pelafalan** | Kalimat pitching dibaca ulang, lalu dicocokkan dengan naskah target memakai perbandingan kata (toleran terhadap imbuhan). |
 | **Kata pengisi** | "eee", "emm", "kayak", "apa ya", "um", "like" dihitung per menit. |
 | **Proyeksi suara** | Level suara (RMS) dipantau: berapa persen waktu bicaramu cukup lantang. |
@@ -26,13 +27,17 @@ Tanpa instalasi, tanpa server, tanpa akun. Semua analisis berjalan di browser.
    langsung latihan menjawabnya dalam 30 detik.
 2. **Artikulasi** — kalimat pelenturan lidah, dinilai per kata.
 3. **Kejelasan Pelafalan** — kalimat yang sering muncul saat pitching (angka, istilah bisnis).
-4. **Kecepatan Bicara** — naskah dengan penunjuk tempo di tiga kecepatan: tenang, ideal, energik.
+4. **Kecepatan & Ritme** — naskah dengan penunjuk tempo yang ikut berhenti di setiap tanda baca,
+   jadi kamu berlatih berhenti di tempat yang benar, bukan sekadar mengejar kecepatan. Ada empat
+   pilihan: naskah ritme berkalimat pendek (paling pas kalau cenderung nyerocos), lalu tempo
+   tenang, ideal, dan energik.
 
 ## Asisten suara AI
 
 - Memberi aba-aba sebelum latihan dimulai.
 - **Menegur saat kamu bicara**: terlalu cepat, terlalu pelan, suara kurang lantang,
-  kebanyakan kata pengisi, atau terlalu lama diam. Teguran muncul sebagai teks, dan bisa
+  kebanyakan kata pengisi, terlalu lama diam, atau bicara lebih dari 15 detik tanpa ambil napas
+  sama sekali (nyerocos). Teguran muncul sebagai teks, dan bisa
   diubah jadi suara lewat sakelar **"Tegur langsung"** (matikan kalau pakai speaker,
   karena suaranya akan ikut terekam mikrofon).
 - Membacakan **penilaian akhir**: skor, satu kalimat vonis, dan perbaikan paling penting.
@@ -40,8 +45,8 @@ Tanpa instalasi, tanpa server, tanpa akun. Semua analisis berjalan di browser.
 
 ## Skor
 
-Setiap sesi diberi skor 0–100 dari lima aspek berbobot: kecepatan (22%), bebas kata
-pengisi (22%), kejelasan (26%), proyeksi suara (15%), variasi nada (15%). Sepuluh sesi
+Setiap sesi diberi skor 0–100 dari enam aspek berbobot: kejelasan (22%), kecepatan (18%),
+bebas kata pengisi (18%), ritme & jeda (18%), proyeksi suara (12%), variasi nada (12%). Sepuluh sesi
 terakhir dirata-rata di beranda supaya kemajuanmu terlihat. Sesi di bawah lima detik atau
 tanpa suara tidak dinilai dan tidak disimpan.
 
