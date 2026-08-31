@@ -20,6 +20,12 @@ export const FILLERS = {
             'basically', 'literally', 'kind of', 'sort of', 'actually']
 };
 
+/** Kata yang paling berguna dijadikan tombol ketuk manual saat latihan. */
+export const TAP_FILLERS = {
+  'id-ID': ['eee', 'emm', 'anu', 'kayak', 'gitu', 'apa ya'],
+  'en-US': ['um', 'uh', 'like', 'you know', 'so', 'actually']
+};
+
 /** Rentang kecepatan bicara ideal (kata per menit) saat pitching. */
 export const PACE = {
   'id-ID': { min: 110, max: 150, ideal: 130 },
@@ -45,7 +51,7 @@ export const PAUSE_MS = {
 };
 
 /** Bobot skor akhir. */
-export const WEIGHTS = { pace: 0.18, filler: 0.18, clarity: 0.22, rhythm: 0.18, projection: 0.12, variety: 0.12 };
+export const WEIGHTS = { clarity: 0.20, pace: 0.16, filler: 0.16, rhythm: 0.16, variety: 0.12, projection: 0.10, energy: 0.10 };
 
 export const SCENARIOS = [
   {
@@ -168,3 +174,149 @@ export const COACH_INTRO = {
     pace: 'Follow the highlight. Stop at every slash, that is where you breathe.'
   }
 };
+
+
+/**
+ * Kartu topik dadakan (table topics) untuk melatih berpikir cepat.
+ */
+export const TOPICS = {
+  'id-ID': {
+    'Bisnis & Klien': [
+      'Jelaskan bisnismu ke orang yang baru kamu temui di lift.',
+      'Kenapa klien harus memilih kamu, bukan yang lebih murah?',
+      'Satu hal yang paling sering disalahpahami tentang pekerjaanmu.',
+      'Ceritakan satu klien yang paling banyak mengajarimu.',
+      'Kalau anggaranmu dipotong setengah, apa yang tetap kamu pertahankan?',
+      'Bagaimana kamu tahu sebuah proyek layak ditolak?',
+      'Apa yang berubah di industrimu dalam tiga tahun terakhir?',
+      'Jual satu produk sederhana: sebuah pulpen di meja ini.',
+      'Kenapa harga jasamu segitu? Jelaskan tanpa minta maaf.',
+      'Satu kesalahan yang sering dilakukan pemula di bidangmu.'
+    ],
+    'Pengalaman & Cerita': [
+      'Kegagalan yang ternyata menyelamatkan kamu.',
+      'Hari kerja terburuk yang pernah kamu alami, dan apa hikmahnya.',
+      'Orang yang paling mengubah cara kerjamu.',
+      'Keputusan yang kamu ambil dengan informasi setengah.',
+      'Momen ketika kamu tahu kamu berada di jalur yang benar.',
+      'Pengalaman pertama yang bikin kamu jatuh cinta pada pekerjaanmu.',
+      'Sesuatu yang dulu kamu yakini, tapi sekarang tidak lagi.',
+      'Pujian terbaik yang pernah kamu terima dari klien.'
+    ],
+    'Opini & Argumen': [
+      'Kerja dari rumah: lebih produktif atau tidak?',
+      'Apakah AI akan menghapus pekerjaan kreatif?',
+      'Pendidikan formal masih penting atau tidak?',
+      'Media sosial: alat bisnis atau pemborosan waktu?',
+      'Lebih baik cepat tapi kasar, atau lambat tapi rapi?',
+      'Pelanggan selalu benar. Setuju atau tidak?',
+      'Haruskah harga dipasang terbuka di website?',
+      'Kerja keras atau kerja cerdas, mana yang lebih menentukan?'
+    ],
+    'Diri Sendiri': [
+      'Perkenalkan dirimu dalam tiga puluh detik, tanpa menyebut jabatan.',
+      'Satu kebiasaan kecil yang mengubah hasil kerjamu.',
+      'Apa yang ingin kamu kuasai tahun ini, dan kenapa?',
+      'Bagaimana kamu memutuskan sesuatu ketika ragu?',
+      'Apa yang membuatmu tetap bertahan di hari yang berat?',
+      'Satu nasihat yang akan kamu berikan pada dirimu lima tahun lalu.'
+    ],
+    'Situasi Sulit': [
+      'Kamu terlambat mengirim pekerjaan. Jelaskan pada klien.',
+      'Timmu membuat kesalahan besar. Sampaikan pada atasan.',
+      'Klien minta diskon lima puluh persen. Jawab sekarang.',
+      'Kamu harus menolak proyek besar. Sampaikan alasannya.',
+      'Presentasimu tinggal lima menit, padahal disiapkan tiga puluh menit.',
+      'Kompetitormu menjelekkan produkmu di depan klien. Tanggapi.',
+      'Kamu tidak tahu jawaban dari pertanyaan klien. Apa yang kamu katakan?'
+    ]
+  },
+  'en-US': {
+    'Business & Clients': [
+      'Explain your business to a stranger in an elevator.',
+      'Why should a client pick you over a cheaper option?',
+      'Sell me a simple pen on this table.',
+      'One thing people misunderstand about your work.'
+    ],
+    'Stories': [
+      'A failure that saved you later.',
+      'The person who changed how you work.',
+      'A decision you made with half the information.'
+    ],
+    'Opinions': [
+      'Is remote work more productive?',
+      'Will AI replace creative work?',
+      'Should prices be public on a website?'
+    ],
+    'Hard Situations': [
+      'You delivered late. Explain it to the client.',
+      'A client asks for a fifty percent discount. Answer now.',
+      'You do not know the answer to their question. What do you say?'
+    ]
+  }
+};
+
+/** Lama waktu berpikir dan bicara pada kartu dadakan (detik). */
+export const CARD_TIMING = { prep: 15, speak: 60 };
+
+/**
+ * Kerangka pitch siap pakai. Setiap bagian punya jatah waktu, dipakai
+ * sebagai penunjuk saat latihan supaya durasinya terkendali.
+ */
+export const OUTLINES = [
+  {
+    id: 'hook-story-point-cta',
+    title: 'Hook → Cerita → Poin → Ajakan',
+    desc: 'Paling kuat untuk membuka presentasi atau konten. Orang ingat cerita, bukan daftar fitur.',
+    sections: [
+      { name: 'Hook', hint: 'Satu kalimat yang bikin orang berhenti dan mendengarkan. Angka mengejutkan, pertanyaan tajam, atau pernyataan berani.', seconds: 15 },
+      { name: 'Cerita', hint: 'Satu kejadian nyata dengan tokoh dan masalahnya. Bukan ringkasan, tapi adegan.', seconds: 45 },
+      { name: 'Poin', hint: 'Pelajaran dari cerita itu, dihubungkan ke masalah yang dialami pendengarmu.', seconds: 30 },
+      { name: 'Ajakan', hint: 'Satu langkah konkret berikutnya. Sebutkan waktunya, bukan sekadar "hubungi kami".', seconds: 15 }
+    ]
+  },
+  {
+    id: 'problem-solution-proof-ask',
+    title: 'Masalah → Solusi → Bukti → Permintaan',
+    desc: 'Kerangka standar pitch ke investor atau klien korporat.',
+    sections: [
+      { name: 'Masalah', hint: 'Masalah yang dirasakan pendengar, bukan masalah yang kamu ingin selesaikan. Pakai angka.', seconds: 25 },
+      { name: 'Solusi', hint: 'Apa yang kamu lakukan, dalam satu kalimat yang bisa diulang orang lain.', seconds: 25 },
+      { name: 'Bukti', hint: 'Hasil nyata: nama klien, angka, sebelum dan sesudah.', seconds: 40 },
+      { name: 'Permintaan', hint: 'Apa yang kamu minta hari ini. Satu hal saja, jelas dan terukur.', seconds: 20 }
+    ]
+  },
+  {
+    id: 'prep',
+    title: 'PREP: Poin → Alasan → Contoh → Poin',
+    desc: 'Untuk menjawab pertanyaan mendadak tanpa berputar-putar.',
+    sections: [
+      { name: 'Poin', hint: 'Jawabanmu, langsung di kalimat pertama.', seconds: 10 },
+      { name: 'Alasan', hint: 'Kenapa begitu. Satu alasan utama saja.', seconds: 20 },
+      { name: 'Contoh', hint: 'Bukti singkat dari pengalamanmu sendiri.', seconds: 25 },
+      { name: 'Poin lagi', hint: 'Ulangi jawaban awal dengan kalimat berbeda, lalu berhenti.', seconds: 10 }
+    ]
+  },
+  {
+    id: 'star',
+    title: 'STAR: Situasi → Tugas → Aksi → Hasil',
+    desc: 'Untuk menceritakan pengalaman kerja saat wawancara atau membangun kredibilitas.',
+    sections: [
+      { name: 'Situasi', hint: 'Latar singkat: kapan, di mana, kondisinya seperti apa.', seconds: 20 },
+      { name: 'Tugas', hint: 'Apa yang menjadi tanggung jawabmu.', seconds: 15 },
+      { name: 'Aksi', hint: 'Langkah yang kamu ambil. Pakai kata "saya", bukan "kami".', seconds: 40 },
+      { name: 'Hasil', hint: 'Angka atau perubahan nyata setelah itu.', seconds: 20 }
+    ]
+  },
+  {
+    id: 'objection',
+    title: 'Keberatan: Akui → Ubah Sudut → Bukti → Tutup',
+    desc: 'Untuk menjawab "terlalu mahal", "kami sudah punya vendor", atau "nanti dulu".',
+    sections: [
+      { name: 'Akui', hint: 'Ulangi keberatannya dengan kalimatmu sendiri supaya klien merasa didengar.', seconds: 15 },
+      { name: 'Ubah sudut', hint: 'Geser dari harga ke nilai, atau ke biaya kalau tidak melakukan apa-apa.', seconds: 25 },
+      { name: 'Bukti', hint: 'Satu contoh klien dengan kekhawatiran yang sama, dan hasilnya.', seconds: 25 },
+      { name: 'Tutup', hint: 'Tawarkan langkah kecil dengan risiko rendah.', seconds: 15 }
+    ]
+  }
+];

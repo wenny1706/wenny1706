@@ -128,10 +128,17 @@ export function buildFeedback(result, lang, mode) {
 
   if (s.fillerCount === 0) good.push(id ? 'Nol kata pengisi. Bersih.' : 'Zero filler words. Clean.');
   else {
+    // Kalau semuanya dicatat manual, daftar otomatisnya bisa kosong.
     const top = Object.entries(s.fillerList).sort((a, b) => b[1] - a[1])[0];
-    fix.push(id
-      ? `${s.fillerCount} kata pengisi, paling sering "${top[0]}" (${top[1]}x). Ganti dengan diam sejenak.`
-      : `${s.fillerCount} fillers, mostly "${top[0]}" (${top[1]}x). Replace them with silence.`);
+    if (top) {
+      fix.push(id
+        ? `${s.fillerCount} kata pengisi, paling sering "${top[0]}" (${top[1]}x). Ganti dengan diam sejenak.`
+        : `${s.fillerCount} fillers, mostly "${top[0]}" (${top[1]}x). Replace them with silence.`);
+    } else {
+      fix.push(id
+        ? `${s.fillerCount} kata pengisi tercatat. Ganti dengan diam sejenak, bukan bunyi.`
+        : `${s.fillerCount} fillers logged. Replace them with silence, not sound.`);
+    }
   }
 
   if (s.scriptAccuracy !== null) {

@@ -22,6 +22,8 @@ export class MicEngine {
     this.voicedFrames = 0;
     this.loudFrames = 0;
     this.rmsSum = 0;
+    this.voicedRmsSum = 0;
+    this.voicedRmsSqSum = 0;
     this.peakRms = 0;
     this.pitches = [];
     this.pauses = [];
@@ -120,6 +122,8 @@ export class MicEngine {
 
       if (rms >= AUDIO.silenceRms) {
         this.voicedFrames++;
+        this.voicedRmsSum += rms;
+        this.voicedRmsSqSum += rms * rms;
         if (rms >= AUDIO.quietRms) this.loudFrames++;
         this._closePause(now);
         if (this._voiceStart === null) this._voiceStart = now;
@@ -198,6 +202,14 @@ export class MicEngine {
       medianHz = sorted[Math.floor(sorted.length / 2)];
       semitoneRange = 12 * Math.log2(p90 / p10);
     }
+    // Dinamika volume: suara yang naik turun terdengar hidup, yang rata terdengar datar.
+    let rmsCv = 0;
+    if (this.voicedFrames > 10) {
+      const mean = this.voicedRmsSum / this.voicedFrames;
+      const varc = Math.max(0, this.voicedRmsSqSum / this.voicedFrames - mean * mean);
+      rmsCv = mean > 0 ? Math.sqrt(varc) / mean : 0;
+    }
+
     const runCount = this.runs.length;
     const avgRunMs = runCount ? this.runs.reduce((a, b) => a + b, 0) / runCount : 0;
     const maxRunMs = runCount ? Math.max(...this.runs) : 0;
@@ -208,6 +220,7 @@ export class MicEngine {
       avgRunMs,
       maxRunMs,
       breaths: this.breaths,
+      rmsCv,
       avgRms: this.frames ? this.rmsSum / this.frames : 0,
       peakRms: this.peakRms,
       voicedRatio,

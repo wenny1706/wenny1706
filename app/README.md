@@ -18,16 +18,25 @@ Tanpa instalasi, tanpa server, tanpa akun. Semua analisis berjalan di browser.
 | **Proyeksi suara** | Level suara (RMS) dipantau: berapa persen waktu bicaramu cukup lantang. |
 | **Variasi nada** | Nada dasar suara diperkirakan dengan autokorelasi, lalu diukur rentangnya dalam semitone untuk mendeteksi bicara yang monoton. |
 | **Jeda** | Jeda diam dihitung; jeda di atas 2,2 detik ditandai sebagai "menggantung". |
+| **Energi suara** | Naik turunnya volume diukur. Suara yang rata sepanjang presentasi terdengar datar dan membosankan, walau volumenya cukup keras. |
 
-## Empat mode latihan
+## Enam mode latihan
 
 1. **Latihan Pitch** — skenario nyata: pitch 60 detik ke investor, presentasi ke klien
    korporat, menjawab keberatan harga, closing statement, dan impromptu dengan topik acak.
    Setelah selesai, asisten AI melontarkan **pertanyaan sulit dari klien** dan kamu bisa
    langsung latihan menjawabnya dalam 30 detik.
-2. **Artikulasi** — kalimat pelenturan lidah, dinilai per kata.
-3. **Kejelasan Pelafalan** — kalimat yang sering muncul saat pitching (angka, istilah bisnis).
-4. **Kecepatan & Ritme** — naskah dengan penunjuk tempo yang ikut berhenti di setiap tanda baca,
+2. **Kartu Dadakan** — 40+ topik acak dalam lima kategori (bisnis & klien, cerita, opini,
+   diri sendiri, situasi sulit). Asisten membacakan topiknya, kamu dapat 15 detik berpikir
+   lalu 60 detik bicara, dan sesi berhenti sendiri. Tombol "Kartu lain" untuk mengundi ulang.
+3. **Kerangka Pitch** — susun isi pitch memakai lima pola yang terbukti: Hook → Cerita → Poin
+   → Ajakan, Masalah → Solusi → Bukti → Permintaan, PREP, STAR, dan pola menjawab keberatan.
+   Setiap bagian punya jatah waktu. Kerangka tersimpan di perangkatmu, dan bisa langsung
+   dipakai latihan: saat bicara, bagian yang sedang berjalan disorot dan asisten memberi
+   aba-aba tiap ganti bagian.
+4. **Artikulasi** — kalimat pelenturan lidah, dinilai per kata.
+5. **Kejelasan Pelafalan** — kalimat yang sering muncul saat pitching (angka, istilah bisnis).
+6. **Kecepatan & Ritme** — naskah dengan penunjuk tempo yang ikut berhenti di setiap tanda baca,
    jadi kamu berlatih berhenti di tempat yang benar, bukan sekadar mengejar kecepatan. Ada empat
    pilihan: naskah ritme berkalimat pendek (paling pas kalau cenderung nyerocos), lalu tempo
    tenang, ideal, dan energik.
@@ -43,10 +52,38 @@ Tanpa instalasi, tanpa server, tanpa akun. Semua analisis berjalan di browser.
 - Membacakan **penilaian akhir**: skor, satu kalimat vonis, dan perbaikan paling penting.
 - Membacakan pertanyaan klien pada sesi tanya jawab.
 
+## Menghitung kata pengisi
+
+Tiga lapis, karena mesin saja tidak cukup:
+
+1. **Otomatis** dari transkrip, memakai daftar bawaan per bahasa.
+2. **Kata khusus kamu** — tambahkan kata andalanmu sendiri di beranda ("sebenarnya", "yaa",
+   "oke gitu"). Tersimpan di perangkat dan ikut dihitung.
+3. **Ketuk manual** — deretan tombol di layar latihan. Ketuk saat kamu (atau rekan yang
+   menyimak) mendengar kata pengisi yang terlewat mesin. Berguna juga saat latihan berdua
+   dengan pelatih.
+
+Skor memakai angka yang lebih besar antara hitungan mesin dan hitungan manual, supaya yang
+terlewat tetap terhitung tanpa dihitung dua kali.
+
+## Penilaian diri & analisis lanjutan
+
+Setelah setiap sesi kamu bisa memberi nilai 1–5 untuk rasa percaya diri, energi, dan
+kejelasan pesan. Nilai ini disimpan bersama sesi, lalu dirata-rata di beranda, supaya
+terlihat apakah perasaanmu sejalan dengan hasil yang terukur. Rasa gugup sering menipu:
+banyak orang merasa buruk padahal skornya naik.
+
+Tombol **"Salin ringkasan untuk Claude"** menyalin seluruh angka sesi plus transkripnya
+ke papan klip, lengkap dengan pertanyaan siap pakai. Tempel ke Claude untuk menilai isi
+pitch, struktur, dan pilihan katamu. Aplikasi ini sendiri tidak memanggil layanan AI mana
+pun, jadi tidak ada kunci API yang perlu dipasang dan tidak ada data yang keluar tanpa
+kamu tempel sendiri.
+
 ## Skor
 
-Setiap sesi diberi skor 0–100 dari enam aspek berbobot: kejelasan (22%), kecepatan (18%),
-bebas kata pengisi (18%), ritme & jeda (18%), proyeksi suara (12%), variasi nada (12%). Sepuluh sesi
+Setiap sesi diberi skor 0–100 dari tujuh aspek berbobot: kejelasan (20%), kecepatan (16%),
+bebas kata pengisi (16%), ritme & jeda (16%), variasi nada (12%), proyeksi suara (10%),
+energi suara (10%). Sepuluh sesi
 terakhir dirata-rata di beranda supaya kemajuanmu terlihat. Sesi di bawah lima detik atau
 tanpa suara tidak dinilai dan tidak disimpan.
 
@@ -89,12 +126,12 @@ app/
 ├── css/style.css
 └── js/
     ├── app.js          # alur aplikasi & tampilan
-    ├── config.js       # materi latihan, daftar kata pengisi, ambang penilaian
+    ├── config.js       # materi latihan, kartu topik, kerangka pitch, ambang penilaian
     ├── audio.js        # mikrofon, level suara, deteksi jeda, perkiraan nada, perekaman
     ├── recognition.js  # transkripsi langsung (Web Speech API)
     ├── metrics.js      # kpm, kata pengisi, pencocokan naskah, perhitungan skor
     ├── coach.js        # asisten suara AI: aba-aba, teguran langsung, umpan balik akhir
-    └── storage.js      # riwayat sesi & preferensi
+    └── storage.js      # riwayat sesi, kerangka tersimpan, preferensi
 ```
 
 Materi latihan dan ambang penilaian ada di `js/config.js` — tambah skenario atau kalimat

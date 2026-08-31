@@ -37,6 +37,15 @@
     <h2 class="section-title">Pilih latihan</h2>
     <div id="mode-grid" class="mode-grid"></div>
 
+    <section class="panel">
+      <h3>Kata pengisi khusus kamu</h3>
+      <p class="muted">Setiap orang punya kata andalan sendiri saat gugup. Tambahkan punyamu, pisahkan dengan koma. Contoh: sebenarnya, yaa, oke gitu.</p>
+      <div class="row">
+        <input id="custom-fillers" class="text-input" type="text" placeholder="sebenarnya, yaa, oke gitu">
+        <button id="save-fillers" class="btn small">Simpan</button>
+      </div>
+    </section>
+
     <div class="two-col">
       <section class="panel">
         <h3>Kemajuan kamu</h3>
@@ -69,6 +78,7 @@
     <p id="session-brief" class="brief"></p>
 
     <div id="script-box" class="script" hidden></div>
+    <div id="outline-track" class="outline-track" hidden></div>
 
     <div class="meters">
       <div class="meter"><span class="meter-label" id="timer-label">Waktu</span><strong id="timer">0:00</strong></div>
@@ -78,6 +88,20 @@
         <span class="meter-label">Volume suara</span>
         <div class="level"><div id="level-fill" class="level-fill"></div></div>
       </div>
+      <div class="meter wide">
+        <span class="meter-label">Posisi kecepatan</span>
+        <div class="gauge">
+          <div class="gauge-band"></div>
+          <div id="gauge-needle" class="gauge-needle"></div>
+          <span class="gauge-min">lambat</span><span class="gauge-ok">pas</span><span class="gauge-max">cepat</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="tap-row" class="tap-row">
+      <span class="muted">Ketuk saat kamu dengar dirimu bilang:</span>
+      <span id="tap-buttons"></span>
+      <span id="tap-total" class="tap-total">0</span>
     </div>
 
     <p id="coach-cue" class="cue"></p>
@@ -88,6 +112,32 @@
       <button id="btn-start" class="btn big">Mulai bicara</button>
       <button id="btn-stop" class="btn big danger" hidden>Selesai &amp; nilai</button>
     </div>
+  </section>
+
+  <!-- PENYUSUN KERANGKA -->
+  <section id="screen-outline" class="screen" hidden>
+    <button id="outline-back" class="btn ghost small back">‹ Kembali</button>
+    <h2 class="section-title">Kerangka Pitch</h2>
+    <p class="muted">Pilih pola yang terbukti dipakai pembicara profesional, isi tiap bagian dengan kalimatmu sendiri, lalu langsung latihan memakai kerangka itu. Waktu tiap bagian akan dipandu saat latihan.</p>
+
+    <div class="row">
+      <label class="ctl"><span>Pola</span><select id="outline-template"></select></label>
+      <label class="ctl"><span>Nama</span><input id="outline-name" class="text-input" type="text" placeholder="Pitch untuk PT Maju"></label>
+    </div>
+    <p id="outline-desc" class="muted"></p>
+
+    <div id="outline-fields"></div>
+
+    <div class="row">
+      <button id="outline-save" class="btn">Simpan kerangka</button>
+      <button id="outline-practice" class="btn ghost">Latihan dengan kerangka ini</button>
+      <span id="outline-total" class="muted"></span>
+    </div>
+
+    <section class="panel">
+      <h3>Kerangka tersimpan</h3>
+      <div id="outline-list" class="history"></div>
+    </section>
   </section>
 
   <!-- LAPORAN -->
@@ -117,7 +167,15 @@
 
     <section id="qa-box" class="panel" hidden></section>
 
+    <section class="panel">
+      <h3>Penilaian dirimu sendiri</h3>
+      <p class="muted">Mesin mengukur suara, kamu yang tahu rasanya. Isi ini supaya kamu bisa melihat apakah rasa percaya dirimu sejalan dengan hasil terukur.</p>
+      <div id="self-rate" class="self-rate"></div>
+      <p id="self-saved" class="muted" hidden>Tersimpan bersama sesi ini.</p>
+    </section>
+
     <div class="row center">
+      <button id="btn-copy-claude" class="btn ghost">Salin ringkasan untuk Claude</button>
       <button id="btn-replay-feedback" class="btn ghost">Putar ulang umpan balik</button>
       <button id="btn-repeat" class="btn">Ulangi latihan</button>
       <button id="btn-home" class="btn ghost">Beranda</button>

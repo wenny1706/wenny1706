@@ -9,11 +9,12 @@ export const normalize = t => (t || '')
 export const words = t => normalize(t).split(' ').filter(Boolean);
 
 /** Menghitung kata pengisi, termasuk frasa dua kata seperti "apa ya". */
-export function countFillers(text, lang) {
+export function countFillers(text, lang, extra = []) {
   const padded = ' ' + normalize(text) + ' ';
   const found = {};
   let total = 0;
-  for (const f of (FILLERS[lang] || [])) {
+  const list = [...(FILLERS[lang] || []), ...extra.map(x => normalize(x)).filter(Boolean)];
+  for (const f of new Set(list)) {
     const re = new RegExp('\\s' + f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s', 'g');
     const n = (padded.match(re) || []).length;
     if (n) { found[f] = n; total += n; }
@@ -138,12 +139,16 @@ function scoreRhythm(audio, expected, coverage) {
  * Menghitung skor 0-100 per aspek + skor keseluruhan.
  * `scriptAccuracy` hanya ada pada mode dengan naskah target.
  */
-export function scoreSession({ text, audio, lang, scriptAccuracy = null, confidence = null, script = null }) {
+export function scoreSession({ text, audio, lang, scriptAccuracy = null, confidence = null,
+                               script = null, extraFillers = [], manualFillers = 0 }) {
   const band = PACE[lang] || PACE['id-ID'];
   const minutes = audio.durationMs / 60000;
   const speed = minutes > 0 ? words(text).length / minutes : 0;
-  const fillers = countFillers(text, lang);
-  const fillerRate = minutes > 0 ? fillers.total / minutes : 0;
+  const fillers = countFillers(text, lang, extraFillers);
+  // Hitungan manual dipakai kalau lebih besar, supaya yang terlewat mesin tetap terhitung
+  // tanpa menghitung dua kali kata yang sama.
+  const fillerTotal = Math.max(fillers.total, manualFillers);
+  const fillerRate = minutes > 0 ? fillerTotal / minutes : 0;
 
   const pace = speed === 0 ? 0
     : speed < band.min ? clamp(100 - (band.min - speed) * 1.6)
@@ -158,6 +163,12 @@ export function scoreSession({ text, audio, lang, scriptAccuracy = null, confide
   else clarity = clamp(audio.voicedRatio * 120);
 
   const projection = clamp(audio.loudRatio * 100 * 1.15);
+  // Energi: suara yang dinamis (ada tekanan dan pelemahan) terdengar bersemangat.
+  // Terlalu rata berarti datar, terlalu liar berarti tidak terkendali.
+  const cv = audio.rmsCv || 0;
+  const energy = clamp(cv <= 0.35 ? (cv / 0.35) * 85
+    : cv <= 0.85 ? 85 + (1 - Math.abs(cv - 0.55) / 0.3) * 15
+    : Math.max(35, 100 - (cv - 0.85) * 70));
   const variety = clamp((audio.semitoneRange / AUDIO.minSemitoneRange) * 70 + 10);
 
   const expected = script ? expectedBreaths(script) : 0;
@@ -173,7 +184,7 @@ export function scoreSession({ text, audio, lang, scriptAccuracy = null, confide
   const rhythmInfo = scoreRhythm(audio, expected, coverage);
   const rhythm = rhythmInfo.score;
 
-  const parts = { pace, filler, clarity, rhythm, projection, variety };
+  const parts = { pace, filler, clarity, rhythm, projection, variety, energy };
   const overall = Math.round(
     Object.entries(WEIGHTS).reduce((sum, [k, w]) => sum + parts[k] * w, 0)
   );
@@ -185,7 +196,9 @@ export function scoreSession({ text, audio, lang, scriptAccuracy = null, confide
       wpm: Math.round(speed),
       band,
       wordCount: words(text).length,
-      fillerCount: fillers.total,
+      fillerCount: fillerTotal,
+      fillerAuto: fillers.total,
+      fillerManual: manualFillers,
       fillerList: fillers.found,
       fillerRate: +fillerRate.toFixed(1),
       pauseCount: audio.pauseCount,
@@ -194,6 +207,7 @@ export function scoreSession({ text, audio, lang, scriptAccuracy = null, confide
       breaths: audio.breaths,
       expectedBreaths: expected ? Math.max(1, Math.round(expected * clamp(coverage, 0, 1))) : 0,
       avgRunSec: +rhythmInfo.avg.toFixed(1),
+      dynamics: +(audio.rmsCv || 0).toFixed(2),
       maxRunSec: +rhythmInfo.max.toFixed(1),
       durationSec: Math.round(audio.durationMs / 1000),
       scriptAccuracy: scriptAccuracy === null ? null : Math.round(scriptAccuracy * 100)

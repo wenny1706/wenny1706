@@ -1,9 +1,11 @@
-import { LANGS, SCENARIOS, ARTICULATION, CLARITY, PACE_SCRIPT, RHYTHM_SCRIPT, PACE, COACH_INTRO } from './config.js';
+import { LANGS, SCENARIOS, ARTICULATION, CLARITY, PACE_SCRIPT, RHYTHM_SCRIPT, PACE, COACH_INTRO,
+         TOPICS, CARD_TIMING, OUTLINES, TAP_FILLERS } from './config.js';
 import { MicEngine } from './audio.js';
 import { Transcriber } from './recognition.js';
 import { scoreSession, countFillers, compareToScript, words, tokenize } from './metrics.js';
 import { VoiceCoach, LiveCoach, buildFeedback } from './coach.js';
-import { loadSessions, saveSession, clearSessions, loadPrefs, savePrefs, progress } from './storage.js';
+import { loadSessions, saveSession, clearSessions, loadPrefs, savePrefs, progress,
+         loadOutlines, saveOutline, deleteOutline, rateLastSession } from './storage.js';
 
 const $ = sel => document.querySelector(sel);
 const $$ = sel => [...document.querySelectorAll(sel)];
@@ -11,14 +13,23 @@ const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls)
 
 const MODE_LABEL = {
   pitch: 'Latihan Pitch',
+  cards: 'Kartu Dadakan',
+  outline: 'Kerangka Pitch',
   articulation: 'Artikulasi',
   clarity: 'Kejelasan Pelafalan',
   pace: 'Kecepatan & Ritme'
 };
 
 const ASPECT_LABEL = {
-  pace: 'Kecepatan', filler: 'Bebas kata pengisi', clarity: 'Kejelasan',
-  rhythm: 'Ritme & jeda', projection: 'Proyeksi suara', variety: 'Variasi nada'
+  clarity: 'Kejelasan', pace: 'Kecepatan', filler: 'Bebas kata pengisi',
+  rhythm: 'Ritme & jeda', variety: 'Variasi nada', projection: 'Proyeksi suara',
+  energy: 'Energi suara'
+};
+
+const SELF_LABEL = {
+  confidence: 'Rasa percaya diri',
+  energy: 'Energi & semangat',
+  message: 'Kejelasan pesanmu'
 };
 
 class App {
@@ -30,6 +41,7 @@ class App {
 
     const prefs = loadPrefs();
     this.lang = prefs.lang || 'id-ID';
+    this.customFillers = prefs.customFillers || [];
     this.coach.enabled = prefs.coachVoice !== false;
     this.liveVoice = prefs.liveVoice === true;
     this.coach.pickVoice(this.lang);
@@ -68,13 +80,24 @@ class App {
 
     $('#mic-request').onclick = () => this.enableMic();
     $('#nav-home').onclick = () => this.leaveSession();
+    const fillerInput = $('#custom-fillers');
+    fillerInput.value = this.customFillers.join(', ');
+    $('#save-fillers').onclick = () => {
+      this.customFillers = fillerInput.value.split(',').map(x => x.trim()).filter(Boolean).slice(0, 15);
+      fillerInput.value = this.customFillers.join(', ');
+      this.persist();
+      $('#save-fillers').textContent = 'Tersimpan';
+      setTimeout(() => { $('#save-fillers').textContent = 'Simpan'; }, 1500);
+    };
+
     $('#clear-history').onclick = () => {
       if (confirm('Hapus semua riwayat latihan?')) { clearSessions(); this.renderHistory(); }
     };
   }
 
   persist() {
-    savePrefs({ lang: this.lang, coachVoice: this.coach.enabled, liveVoice: this.liveVoice });
+    savePrefs({ lang: this.lang, coachVoice: this.coach.enabled, liveVoice: this.liveVoice,
+                customFillers: this.customFillers });
   }
 
   checkSupport() {
@@ -115,6 +138,8 @@ class App {
 
     const cards = [
       { mode: 'pitch', icon: '🎯', title: 'Latihan Pitch', desc: 'Skenario nyata di depan klien atau investor, lengkap dengan sesi tanya jawab dadakan dari asisten AI.' },
+      { mode: 'cards', icon: '🎲', title: 'Kartu Dadakan', desc: 'Topik acak, 15 detik berpikir, 60 detik bicara. Melatih berpikir sambil berdiri.' },
+      { mode: 'outline', icon: '🧱', title: 'Kerangka Pitch', desc: 'Susun isi pitch pakai pola Hook, Cerita, Poin, Ajakan. Lalu latihan dengan pemandu waktu tiap bagian.' },
       { mode: 'articulation', icon: '👄', title: 'Artikulasi', desc: 'Kalimat sulit untuk melenturkan lidah dan bibir. Dinilai per kata.' },
       { mode: 'clarity', icon: '🔊', title: 'Kejelasan Pelafalan', desc: 'Baca kalimat pitching. Kata yang tidak jelas ditandai merah.' },
       { mode: 'pace', icon: '⏱️', title: 'Kecepatan & Ritme', desc: 'Ikuti penunjuk tempo, dan berhenti di setiap tanda baca supaya tidak nyerocos.' }
@@ -151,6 +176,13 @@ class App {
       list.append(row);
     });
     box.append(list);
+
+    if (p.self) {
+      const self = el('p', 'muted');
+      self.textContent = `Penilaian dirimu (${p.self.count} sesi): percaya diri ${p.self.confidence}/5, `
+        + `energi ${p.self.energy}/5, kejelasan pesan ${p.self.message}/5.`;
+      box.append(self);
+    }
   }
 
   renderHistory() {
@@ -173,6 +205,7 @@ class App {
   /* ---------- pemilihan latihan ---------- */
 
   openMode(mode) {
+    if (mode === 'outline') return this.openOutlineBuilder();
     this.show('picker');
     $('#picker-title').textContent = MODE_LABEL[mode];
     const list = $('#picker-list');
@@ -192,6 +225,18 @@ class App {
 
   itemsFor(mode) {
     if (mode === 'pitch') return SCENARIOS.map(s => ({ ...s }));
+    if (mode === 'cards') {
+      const groups = TOPICS[this.lang] || {};
+      const all = Object.values(groups).flat();
+      return [
+        { id: 'cards-all', title: 'Acak dari semua kategori', brief: `${all.length} topik siap diundi.`, topics: all,
+          prep: CARD_TIMING.prep, seconds: CARD_TIMING.speak, hardStop: true },
+        ...Object.entries(groups).map(([name, list]) => ({
+          id: 'cards-' + name, title: name, brief: `${list.length} topik.`, topics: list,
+          prep: CARD_TIMING.prep, seconds: CARD_TIMING.speak, hardStop: true
+        }))
+      ];
+    }
     if (mode === 'articulation') return (ARTICULATION[this.lang] || []).map((t, i) => ({ id: 'art' + i, title: `Latihan ${i + 1}`, brief: t, script: t }));
     if (mode === 'clarity') return (CLARITY[this.lang] || []).map((t, i) => ({ id: 'cla' + i, title: `Kalimat ${i + 1}`, brief: t, script: t }));
     if (mode === 'pace') {
@@ -209,11 +254,105 @@ class App {
     return [];
   }
 
+  /* ---------- penyusun kerangka pitch ---------- */
+
+  openOutlineBuilder(preset = null) {
+    this.show('outline');
+    const sel = $('#outline-template');
+    if (!sel.options.length) OUTLINES.forEach(o => sel.append(new Option(o.title, o.id)));
+    sel.value = preset?.templateId || sel.value || OUTLINES[0].id;
+    $('#outline-name').value = preset?.name || '';
+    this.editingOutlineId = preset?.id || null;
+
+    const draw = () => this.renderOutlineFields(preset && preset.templateId === sel.value ? preset : null);
+    sel.onchange = () => { this.editingOutlineId = null; draw(); };
+    draw();
+
+    $('#outline-back').onclick = () => this.renderHome();
+    $('#outline-save').onclick = () => this.saveCurrentOutline();
+    $('#outline-practice').onclick = () => this.practiceOutline();
+    this.renderOutlineList();
+  }
+
+  renderOutlineFields(preset) {
+    const tpl = OUTLINES.find(o => o.id === $('#outline-template').value);
+    $('#outline-desc').textContent = tpl.desc;
+    const box = $('#outline-fields');
+    box.innerHTML = '';
+    tpl.sections.forEach((sec, i) => {
+      const wrap = el('div', 'field');
+      wrap.append(el('label', null, `${sec.name} — ${sec.seconds} detik`));
+      wrap.append(el('p', 'muted', sec.hint));
+      const ta = el('textarea');
+      ta.rows = 2;
+      ta.placeholder = 'Tulis kalimatmu sendiri di sini';
+      ta.value = preset?.sections?.[i]?.text || '';
+      ta.dataset.i = i;
+      wrap.append(ta);
+      box.append(wrap);
+    });
+    const total = tpl.sections.reduce((a, s2) => a + s2.seconds, 0);
+    $('#outline-total').textContent = `Total ${total} detik.`;
+  }
+
+  currentOutline() {
+    const tpl = OUTLINES.find(o => o.id === $('#outline-template').value);
+    const texts = $$('#outline-fields textarea').map(t => t.value.trim());
+    return {
+      id: this.editingOutlineId || 'o' + Date.now(),
+      templateId: tpl.id,
+      name: $('#outline-name').value.trim() || tpl.title,
+      sections: tpl.sections.map((sec, i) => ({ ...sec, text: texts[i] || '' }))
+    };
+  }
+
+  saveCurrentOutline() {
+    const o = this.currentOutline();
+    this.editingOutlineId = o.id;
+    saveOutline(o);
+    this.renderOutlineList();
+    $('#outline-save').textContent = 'Tersimpan';
+    setTimeout(() => { $('#outline-save').textContent = 'Simpan kerangka'; }, 1500);
+  }
+
+  practiceOutline() {
+    const o = this.currentOutline();
+    const total = o.sections.reduce((a, s2) => a + s2.seconds, 0);
+    this.prepare('outline', {
+      id: o.id, title: o.name, seconds: total, sections: o.sections,
+      brief: 'Ikuti bagian yang disorot. Asisten akan memberi aba-aba setiap ganti bagian.'
+    });
+  }
+
+  renderOutlineList() {
+    const box = $('#outline-list');
+    box.innerHTML = '';
+    const all = loadOutlines();
+    if (!all.length) { box.append(el('p', 'muted', 'Belum ada kerangka tersimpan.')); return; }
+    all.forEach(o => {
+      const row = el('div', 'history-row');
+      const meta = el('div', 'history-meta');
+      meta.append(el('strong', null, o.name));
+      meta.append(el('span', 'muted', o.sections.map(x => x.name).join(' → ')));
+      const openBtn = el('button', 'btn ghost small', 'Buka');
+      openBtn.onclick = () => this.openOutlineBuilder(o);
+      const delBtn = el('button', 'btn ghost small', 'Hapus');
+      delBtn.onclick = () => { deleteOutline(o.id); this.renderOutlineList(); };
+      row.append(meta, openBtn, delBtn);
+      box.append(row);
+    });
+  }
+
   /* ---------- sesi latihan ---------- */
 
   async prepare(mode, item) {
     this.show('session');
     this.session = { mode, item, qaAsked: false };
+
+    if (mode === 'cards') {
+      this.session.item = item;
+      setTimeout(() => this.drawCard(item), 50);
+    } else $('#session-brief').classList.remove('topic-card');
 
     if (mode === 'pitch' && item.random) {
       item = { ...item, brief: item.brief + '\n\nTopik: ' + item.random[Math.floor(Math.random() * item.random.length)] };
@@ -241,12 +380,87 @@ class App {
       this.session.tokens = this.renderScript(scriptBox, item.script);
     } else scriptBox.hidden = true;
 
-    $('#btn-start').onclick = () => this.start();
+    // penanda bagian untuk latihan dengan kerangka
+    const track = $('#outline-track');
+    track.innerHTML = '';
+    if (item.sections) {
+      track.hidden = false;
+      item.sections.forEach((sec, i) => {
+        const card = el('div', 'osec');
+        card.dataset.i = i;
+        card.append(el('strong', null, `${sec.name} · ${sec.seconds} dtk`));
+        card.append(el('p', null, sec.text || sec.hint));
+        track.append(card);
+      });
+    } else track.hidden = true;
+
+    this.buildTapRow();
+    $('#gauge-needle').style.left = '0%';
+    $('#gauge-needle').style.opacity = '0';
+
+    const oldDraw = $('#btn-draw');
+    if (oldDraw) oldDraw.remove();
+    if (mode === 'cards') {
+      const draw = el('button', 'btn ghost', 'Kartu lain');
+      draw.id = 'btn-draw';
+      draw.onclick = () => this.drawCard(item);
+      $('#btn-start').parentNode.insertBefore(draw, $('#btn-start'));
+    }
+
+    $('#btn-start').onclick = () => (item.prep ? this.beginPrep(item.prep) : this.start());
     $('#btn-stop').onclick = () => this.finish();
     $('#session-back').onclick = () => this.leaveSession();
 
     const intro = COACH_INTRO[this.lang]?.[mode];
     if (intro) { $('#coach-cue').textContent = intro; this.coach.say(intro, { interrupt: true }); }
+  }
+
+  /** Mengundi satu topik kartu dadakan dan menampilkannya. */
+  drawCard(item) {
+    const topic = item.topics[Math.floor(Math.random() * item.topics.length)];
+    this.session.topic = topic;
+    $('#session-brief').textContent = topic;
+    $('#session-brief').classList.add('topic-card');
+    this.coach.say(topic, { interrupt: true });
+    return topic;
+  }
+
+  /** Waktu berpikir sebelum bicara, khusus kartu dadakan. */
+  beginPrep(sec) {
+    const cue = $('#coach-cue');
+    const btn = $('#btn-start');
+    let left = sec;
+    cue.textContent = `Waktu berpikir: ${left} detik`;
+    btn.textContent = 'Lewati, mulai sekarang';
+    btn.onclick = () => { clearInterval(this.prepId); this.start(); };
+    this.coach.say(`Kamu punya ${sec} detik untuk berpikir. Susun poin, alasan, lalu contoh.`, { interrupt: true });
+    this.prepId = setInterval(() => {
+      left--;
+      cue.textContent = `Waktu berpikir: ${left} detik`;
+      if (left <= 3 && left > 0) this.coach.say(String(left));
+      if (left <= 0) { clearInterval(this.prepId); this.coach.say('Mulai.', { interrupt: true }); this.start(); }
+    }, 1000);
+  }
+
+  /** Tombol untuk mencatat sendiri kata pengisi yang terdengar saat latihan. */
+  buildTapRow() {
+    const box = $('#tap-buttons');
+    box.innerHTML = '';
+    this.manualFillers = {};
+    $('#tap-total').textContent = '0';
+    const base = TAP_FILLERS[this.lang] || [];
+    const list = [...new Set([...this.customFillers, ...base])].slice(0, 6);
+    list.forEach(word => {
+      const b = el('button', 'tap-btn');
+      b.append(el('span', 'tap-word', word), el('span', 'tap-count', '0'));
+      b.onclick = () => {
+        this.manualFillers[word] = (this.manualFillers[word] || 0) + 1;
+        b.querySelector('.tap-count').textContent = String(this.manualFillers[word]);
+        const total = Object.values(this.manualFillers).reduce((a, c) => a + c, 0);
+        $('#tap-total').textContent = String(total);
+      };
+      box.append(b);
+    });
   }
 
   /**
@@ -287,6 +501,7 @@ class App {
   }
 
   async start() {
+    clearInterval(this.prepId);
     try {
       await this.mic.start({ record: true });
     } catch (e) {
@@ -346,8 +561,15 @@ class App {
     $('#wpm').textContent = String(speed);
     $('#wpm').dataset.level = speed === 0 ? '' : (speed < band.min ? 'low' : speed > band.max ? 'low' : 'good');
 
-    const fillers = countFillers(text, this.lang);
-    $('#filler-count').textContent = String(fillers.total);
+    const fillers = countFillers(text, this.lang, this.customFillers);
+    const manual = Object.values(this.manualFillers || {}).reduce((a, c) => a + c, 0);
+    $('#filler-count').textContent = String(Math.max(fillers.total, manual));
+
+    // jarum kecepatan: 0% terlalu lambat, 50% pas, 100% terlalu cepat
+    const lo = band.min - 40, hi = band.max + 40;
+    const pos = speed ? Math.max(0, Math.min(100, ((speed - lo) / (hi - lo)) * 100)) : 0;
+    $('#gauge-needle').style.left = pos + '%';
+    $('#gauge-needle').style.opacity = speed ? '1' : '0';
 
     // penunjuk tempo: menyorot kata, lalu berhenti di tanda ambil napas
     if (s.schedule) {
@@ -369,7 +591,25 @@ class App {
       if (step + 1 >= s.schedule.length) { this.finish(); return; }
     }
 
+    // penunjuk bagian saat latihan dengan kerangka
+    if (s.item.sections) {
+      let acc = 0, active = s.item.sections.length - 1;
+      for (let i = 0; i < s.item.sections.length; i++) {
+        acc += s.item.sections[i].seconds;
+        if (sec < acc) { active = i; break; }
+      }
+      if (active !== s.activeSection) {
+        s.activeSection = active;
+        $$('#outline-track .osec').forEach((c, i) => c.classList.toggle('active', i === active));
+        const name = s.item.sections[active].name;
+        $('#coach-cue').textContent = `Sekarang bagian: ${name}`;
+        this.coach.say(`Bagian ${name}.`, { interrupt: true });
+      }
+      if (sec >= acc + 20) { this.finish(); return; }
+    }
+
     // batas waktu skenario
+    if (s.item.hardStop && s.item.seconds && sec >= s.item.seconds) { this.finish(); return; }
     if (s.mode === 'pitch' && s.item.seconds && sec >= s.item.seconds + 15) this.finish();
 
     const cue = this.live.evaluate({
@@ -423,13 +663,15 @@ class App {
       text, audio, lang: this.lang,
       scriptAccuracy,
       confidence: this.stt.avgConfidence,
-      script: item.script || null
+      script: item.script || null,
+      extraFillers: this.customFillers,
+      manualFillers: Object.values(this.manualFillers || {}).reduce((a, c) => a + c, 0)
     });
     const feedback = buildFeedback(result, this.lang, this.session.mode);
     this.lastResult = { result, feedback, text, blob, item, mode: this.session.mode, missed, cmp };
 
     saveSession({
-      at: Date.now(), mode: this.session.mode, title: item.title,
+      at: Date.now(), mode: this.session.mode, title: this.session.topic || item.title,
       overall: result.overall, parts: result.parts, stats: result.stats
     });
 
@@ -437,8 +679,77 @@ class App {
     this.coach.say(feedback.spoken, { interrupt: true });
   }
 
+  /** Tiga penilaian diri 1-5, disimpan bersama sesi supaya bisa dibandingkan. */
+  renderSelfRating() {
+    const box = $('#self-rate');
+    box.innerHTML = '';
+    $('#self-saved').hidden = true;
+    this.selfRating = {};
+    Object.entries(SELF_LABEL).forEach(([key, label]) => {
+      const row = el('div', 'rate-row');
+      row.append(el('span', 'rate-label', label));
+      const group = el('div', 'rate-stars');
+      for (let n = 1; n <= 5; n++) {
+        const b = el('button', 'star', String(n));
+        b.onclick = () => {
+          this.selfRating[key] = n;
+          [...group.children].forEach((c, i) => c.classList.toggle('on', i < n));
+          rateLastSession(this.selfRating);
+          $('#self-saved').hidden = false;
+        };
+        group.append(b);
+      }
+      row.append(group);
+      box.append(row);
+    });
+  }
+
+  /**
+   * Menyalin ringkasan sesi ke papan klip, siap ditempel ke Claude untuk
+   * analisis lanjutan. Aplikasi ini sendiri tidak mengirim apa pun ke internet.
+   */
+  async copyForClaude() {
+    const { result, text, item, mode } = this.lastResult;
+    const s = result.stats;
+    const lines = [
+      'Saya sedang melatih public speaking untuk pitching di depan klien.',
+      'Berikut hasil sesi latihan terakhir saya, diukur otomatis dari rekaman suara.',
+      '',
+      `Jenis latihan: ${MODE_LABEL[mode]} — ${this.session?.topic || item.title}`,
+      `Durasi: ${s.durationSec} detik, ${s.wordCount} kata`,
+      `Kecepatan: ${s.wpm} kata per menit (target ${s.band.min}-${s.band.max})`,
+      `Kata pengisi: ${s.fillerCount} (${s.fillerRate} per menit)`,
+      `Ritme: rata-rata ${s.avgRunSec} detik sekali tarikan napas, terpanjang ${s.maxRunSec} detik`,
+      s.expectedBreaths ? `Berhenti di tanda baca: ${s.breaths} dari ${s.expectedBreaths}` : '',
+      `Variasi nada: ${s.semitoneRange} semitone. Dinamika volume: ${s.dynamics}`,
+      `Skor per aspek: ${Object.entries(result.parts).map(([k, v]) => `${ASPECT_LABEL[k]} ${v}`).join(', ')}`,
+      `Skor keseluruhan: ${result.overall} dari 100`,
+      Object.keys(this.selfRating || {}).length
+        ? `Penilaian diri saya (1-5): ${Object.entries(this.selfRating).map(([k, v]) => `${SELF_LABEL[k]} ${v}`).join(', ')}`
+        : '',
+      '',
+      'Transkrip apa adanya:',
+      text || '(tidak ada transkrip)',
+      '',
+      'Tolong nilai isi dan cara penyampaian saya: apakah pesannya jelas, apakah pembukaannya menarik,',
+      'bagian mana yang bertele-tele, dan apa satu perubahan yang paling berdampak untuk latihan berikutnya.'
+    ].filter(Boolean).join('\n');
+
+    const btn = $('#btn-copy-claude');
+    try {
+      await navigator.clipboard.writeText(lines);
+      btn.textContent = 'Tersalin, tinggal tempel ke Claude';
+    } catch {
+      btn.textContent = 'Gagal menyalin, teks ditampilkan di bawah';
+      const pre = el('pre', 'copy-fallback', lines);
+      btn.parentNode.after(pre);
+    }
+    setTimeout(() => { btn.textContent = 'Salin ringkasan untuk Claude'; }, 3000);
+  }
+
   leaveSession() {
     clearInterval(this.timerId);
+    clearInterval(this.prepId);
     this.timerId = 0;
     this.stt.stop();
     this.coach.shutUp();
@@ -480,10 +791,13 @@ class App {
       ['Durasi', `${s.durationSec} detik`],
       ['Jumlah kata', String(s.wordCount)],
       ['Kecepatan', `${s.wpm} kpm (target ${s.band.min}-${s.band.max})`],
-      ['Kata pengisi', `${s.fillerCount} (${s.fillerRate}/menit)`],
+      ['Kata pengisi', s.fillerManual
+        ? `${s.fillerCount} (mesin ${s.fillerAuto}, kamu catat ${s.fillerManual})`
+        : `${s.fillerCount} (${s.fillerRate}/menit)`],
       ['Jeda panjang', String(s.longPauses)],
       ['Variasi nada', `${s.semitoneRange} semitone`],
-      ['Napas per tarikan', `${s.avgRunSec} detik (terpanjang ${s.maxRunSec})`]
+      ['Napas per tarikan', `${s.avgRunSec} detik (terpanjang ${s.maxRunSec})`],
+      ['Dinamika volume', String(s.dynamics)]
     ];
     if (s.expectedBreaths > 0) statItems.push(['Berhenti di tanda baca', `${s.breaths} dari ${s.expectedBreaths}`]);
     if (s.scriptAccuracy !== null) statItems.push(['Ketepatan naskah', `${s.scriptAccuracy}%`]);
@@ -563,6 +877,8 @@ class App {
       qa.lastChild.append(ask, answer);
     } else qa.hidden = true;
 
+    this.renderSelfRating();
+    $('#btn-copy-claude').onclick = () => this.copyForClaude();
     $('#btn-repeat').onclick = () => this.prepare(mode, item);
     $('#btn-home').onclick = () => this.renderHome();
     $('#btn-replay-feedback').onclick = () => this.coach.say(feedback.spoken, { interrupt: true });
