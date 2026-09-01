@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+.env
+.env.local
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+
+# The lockfile is not committed; every dependency is pinned to an exact
+# version in package.json instead, so builds stay reproducible.
+package-lock.json
