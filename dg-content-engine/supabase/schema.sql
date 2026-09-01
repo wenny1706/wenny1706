@@ -149,19 +149,54 @@ create table if not exists hooks (
 -- ---------------------------------------------------------------------------
 -- SECURITY: row level security, locked to logged-in users only.
 -- ---------------------------------------------------------------------------
-do $$
-declare t text;
-begin
-  foreach t in array array[
-    'clients','client_profiles','notes','pillars','plan_items',
-    'content_items','feed_slots','reports','hooks'
-  ] loop
-    execute format('alter table %I enable row level security', t);
-    execute format('drop policy if exists "signed in full access" on %I', t);
-    execute format(
-      'create policy "signed in full access" on %I for all to authenticated using (true) with check (true)', t);
-  end loop;
-end $$;
+-- Written out table by table on purpose. An earlier version used a loop,
+-- which works identically but makes Supabase's SQL checker warn that RLS
+-- is missing, because it cannot read inside a loop.
+
+alter table clients enable row level security;
+drop policy if exists "signed in full access" on clients;
+create policy "signed in full access" on clients
+  for all to authenticated using (true) with check (true);
+
+alter table client_profiles enable row level security;
+drop policy if exists "signed in full access" on client_profiles;
+create policy "signed in full access" on client_profiles
+  for all to authenticated using (true) with check (true);
+
+alter table notes enable row level security;
+drop policy if exists "signed in full access" on notes;
+create policy "signed in full access" on notes
+  for all to authenticated using (true) with check (true);
+
+alter table pillars enable row level security;
+drop policy if exists "signed in full access" on pillars;
+create policy "signed in full access" on pillars
+  for all to authenticated using (true) with check (true);
+
+alter table plan_items enable row level security;
+drop policy if exists "signed in full access" on plan_items;
+create policy "signed in full access" on plan_items
+  for all to authenticated using (true) with check (true);
+
+alter table content_items enable row level security;
+drop policy if exists "signed in full access" on content_items;
+create policy "signed in full access" on content_items
+  for all to authenticated using (true) with check (true);
+
+alter table feed_slots enable row level security;
+drop policy if exists "signed in full access" on feed_slots;
+create policy "signed in full access" on feed_slots
+  for all to authenticated using (true) with check (true);
+
+alter table reports enable row level security;
+drop policy if exists "signed in full access" on reports;
+create policy "signed in full access" on reports
+  for all to authenticated using (true) with check (true);
+
+alter table hooks enable row level security;
+drop policy if exists "signed in full access" on hooks;
+create policy "signed in full access" on hooks
+  for all to authenticated using (true) with check (true);
 
 -- ---------------------------------------------------------------------------
 -- STORAGE: bucket for client logos and Instagram feed images.
